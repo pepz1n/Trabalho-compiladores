@@ -1,171 +1,160 @@
-from typing import List, Dict
+import re
+from typing import List, Dict, Tuple
+import sys
 
-# Palavras-chave da linguagem
 KEYWORDS = {
-    "int", "float", "double", "boolean", "void", "string",
-    "true", "false", "null", "if", "else", "switch", "case", "default",
-    "for", "while", "do", "break", "continue", "return", "try", "catch",
-    "finally", "throw", "public", "private", "protected", "static", "final",
-    "abstract", "class", "interface", "extends", "implements", "new",
-    "this", "super", "package", "import"
+    'int', 'float', 'double', 'boolean', 'void', 'string',
+    'true', 'false', 'null', 'if', 'else', 'switch', 'case', 'default',
+    'break', 'continue', 'return', 'try', 'catch',
+    'finally', 'throw', 'public', 'private', 'protected', 'static', 'final',
+    'abstract', 'class', 'interface', 'extends', 'implements', 'new',
+    'this', 'super', 'package', 'import'
 }
 
-# Operadores
-OPERATORS = {
-    "==", "!=", ">=", "<=", "++", "--", "+=", "-=", "*=", "/=",
-    "+", "-", "*", "/", "=", ">", "<", "&&", "||", "!", "instanceof"
-}
+TOKEN_REGEX = [
+    # Comentários (precisam vir primeiro)
+    (r'//.*',                          'COMMENT'),  
+    (r'/\*[\s\S]*?\*/',                'BLOCK_COMMENT'),
+    
+    # Literais e identificadores
+    (r'\b(true|false|null)\b',         'LITERAL'),      
+    (r'\b(int|float|double|boolean|void|string)\b', 'TYPE'),
+    (r'"[^"]*"',                       'STRING_LITERAL'),
+    
+    # Palavras-chave
+    (r'\b(if|else|switch|case|default)\b', 'CONTROL'),
+    (r'\b(for|while|do)\b',            'LOOP'),
+    (r'\b(break|continue|return)\b',   'FLOW'),
+    (r'\b(try|catch|finally|throw)\b', 'EXCEPTION'),
+    (r'\b(public|private|protected|static|final|abstract)\b', 'MODIFIER'),
+    (r'\b(class|interface|extends|implements|new|this|super|package|import|System)\b', 'KEYWORDS'),
+    # Operadores
+    (r'(\+\+|--|==|!=|>=|<=|&&|\|\||\+=|-=|\*=|\/=|%=|instanceof|[+\-*/=><!%])', 'OPERATOR'),
+    #IDENTIFICADORES
+    (r'\b(?!' + '|'.join(KEYWORDS) + r'\b)[a-zA-Z_][a-zA-Z0-9_]*\b', 'IDENTIFIER'),   
+    # Números
+    (r'\d+\.\d+',                      'NUMDEC'),     
+    (r'\d+',                           'NUMINT'),     
+    
+    
+    # Delimitadores
+    (r'[{}()\[\];,:\.@]',              'DELIMITER'),
+    
+]
 
-# Delimitadores
-DELIMITERS = {"{", "}", "(", ")", "[", "]", ";", ",", ".", ":", "@"}
-
-# Tabelas
-symbol_table = set()
-tokens: List[Dict] = []
-errors: List[Dict] = []
-
-# Auxiliares
-def is_identifier_start(char):
-    return char.isalpha() or char == '_'
-
-def is_identifier_char(char):
-    return char.isalnum() or char == '_'
-
-# Tokenização de uma linha
-def tokenize_line(line: str, line_number: int):
-    i = 0
-    while i < len(line):
-        ch = line[i]
-
-        # Ignora espaços
-        if ch.isspace():
-            i += 1
-            continue
-
-        # Comentários de linha
-        if line[i:i+2] == "//":
-            break
-
-        # Ignorar /* ou */ diretamente
-        if line[i:i+2] in {"/*", "*/"}:
-            i += 2
-            continue
-
-        # Strings
-        if ch == '"':
-            end = i + 1
-            while end < len(line) and line[end] != '"':
-                end += 1
-            if end >= len(line):
-                errors.append({"line": line_number, "lexeme": line[i:], "message": "String literal não fechada"})
-                break
-            tokens.append({"line": line_number, "token": "STRING_LITERAL", "lexeme": line[i:end+1]})
-            i = end + 1
-            continue
-
-        # Operadores
-        matched = False
-        for op in sorted(OPERATORS, key=len, reverse=True):
-            if line.startswith(op, i):
-                tokens.append({"line": line_number, "token": "OPERATOR", "lexeme": op})
-                i += len(op)
-                matched = True
-                break
-        if matched:
-            continue
-
-        # Delimitadores
-        if ch in DELIMITERS:
-            tokens.append({"line": line_number, "token": "DELIMITER", "lexeme": ch})
-            i += 1
-            continue
-
-        # Números
-        if ch.isdigit():
-            start = i
-            has_dot = False
-            while i < len(line) and (line[i].isdigit() or (line[i] == '.' and not has_dot)):
-                if line[i] == '.':
-                    has_dot = True
-                i += 1
-            lex = line[start:i]
-            token_type = "NUMBER_FLOAT" if '.' in lex else "NUMBER_INT"
-            tokens.append({"line": line_number, "token": token_type, "lexeme": lex})
-            continue
-
-        # Identificadores e palavras-chave
-        if is_identifier_start(ch):
-            start = i
-            while i < len(line) and is_identifier_char(line[i]):
-                i += 1
-            lex = line[start:i]
-            if lex in KEYWORDS:
-                tokens.append({"line": line_number, "token": "KEYWORD", "lexeme": lex})
-            else:
-                tokens.append({"line": line_number, "token": "IDENTIFIER", "lexeme": lex})
-                symbol_table.add(lex)
-            continue
-
-        # Lexema inválido
-        errors.append({"line": line_number, "lexeme": ch, "message": "Lexema inválido"})
-        i += 1
-
-# Análise com suporte a comentários multilinha
-def analisar_codigo(codigo: str):
-    inside_block_comment = False
-    i = 0
-    lines = codigo.splitlines()
-
-    while i < len(lines):
-        line = lines[i]
-        if inside_block_comment:
-            end = line.find("*/")
-            if end != -1:
-                inside_block_comment = False
-                lines[i] = line[end + 2:]
-            else:
-                i += 1
+class LexicalAnalyzer:
+    def __init__(self):
+        self.symbol_table = set()
+        self.tokens: List[Dict] = []
+        self.errors: List[Dict] = []
+        self.regex_patterns = self._compile_regex()
+    
+    def _compile_regex(self) -> re.Pattern:
+        combined = '|'.join(f'(?P<{name}>{pattern})' for pattern, name in TOKEN_REGEX if name)
+        return re.compile(combined)
+    
+    def _tokenize_line(self, line: str, line_num: int):
+        pos = 0
+        while pos < len(line):
+            if line[pos].isspace():
+                pos += 1
                 continue
-        start = line.find("/*")
-        if start != -1:
-            inside_block_comment = True
-            before = line[:start]
-            tokenize_line(before, i + 1)
-            i += 1
-            continue
-        tokenize_line(line, i + 1)
-        i += 1
+                
+            match = self.regex_patterns.match(line, pos)
+            if match:
+                token_type = match.lastgroup
+                lexeme = match.group()
+                pos = match.end()
+                
+                if token_type == 'COMMENT':
+                    continue
+                
+                if token_type == 'IDENTIFIER':
+                    if lexeme in KEYWORDS:
+                        token_type = 'KEYWORD'
+                    else:
+                        self.symbol_table.add(lexeme)
+                
+                self.tokens.append({
+                    'line': line_num,
+                    'token': token_type,
+                    'lexeme': lexeme
+                })
+            else:
+                start = pos
+                while pos < len(line) and not line[pos].isspace():
+                    pos += 1
+                invalid_lex = line[start:pos]
+                self.errors.append({
+                    'line': line_num,
+                    'lexeme': invalid_lex,
+                    'message': 'Lexema inválido'
+                })
+    
+    def analyze(self, code: str):
+        in_block_comment = False
+        current_line = 1
+        
+        for line in code.split('\n'):
+            if in_block_comment:
+                end = line.find('*/')
+                if end != -1:
+                    in_block_comment = False
+                    line = line[end+2:]
+                else:
+                    current_line += 1
+                    continue
+            
+            start = line.find('/*')
+            if start != -1:
+                in_block_comment = True
+                self._tokenize_line(line[:start], current_line)
+                line = line[start+2:]
+                
+            if in_block_comment:
+                end = line.find('*/')
+                if end != -1:
+                    in_block_comment = False
+                    line = line[end+2:]
+                else:
+                    current_line += 1
+                    continue
+            
+            if not in_block_comment:
+                self._tokenize_line(line, current_line)
+            
+            current_line += 1
+        
+        if in_block_comment:
+            self.errors.append({
+                'line': current_line,
+                'lexeme': '*/',
+                'message': 'Comentário de bloco não fechado'
+            })
 
-    if inside_block_comment:
-        errors.append({
-            "line": len(lines),
-            "lexeme": "/* comentário de bloco sem fechamento",
-            "message": "Comentário de bloco não fechado"
-        })
+    def print_results(self):
+        print("\n=== Tokens Reconhecidos ===")
+        for token in self.tokens:
+            print(f"Linha {token['line']:3}: {token['token']:<15} {token['lexeme']}")
+        
+        print("\n=== Tabela de Símbolos ===")
+        for symbol in sorted(self.symbol_table):
+            print(f"  {symbol}")
+        
+        print("\n=== Erros Léxicos ===")
+        for error in self.errors:
+            print(f"Linha {error['line']:3}: '{error['lexeme']}' - {error['message']}")
 
-# Impressão dos resultados
-def imprimir_resultado():
-    print("\n### Lista de Tokens Reconhecidos:")
-    for t in tokens:
-        print(f"Linha {t['line']:>2}: {t['token']:<14} => {t['lexeme']}")
-    print("\n### Tabela de Símbolos:")
-    for s in sorted(symbol_table):
-        print(f"ID => {s}")
-    print("\n### Relatório de Erros Léxicos:")
-    for e in errors:
-        print(f"Linha {e['line']}: '{e['lexeme']}' → {e['message']}")
-
-# Leitura do código
-def carregar_codigo():
+def load_code(filename: str) -> str:
     try:
-        with open("index.txt", "r", encoding="utf-8") as f:
+        with open(filename, 'r', encoding='utf-8') as f:
             return f.read()
     except FileNotFoundError:
-        print("Arquivo 'index.txt' não encontrado. Insira código manualmente (Ctrl+D para encerrar):")
-        return "".join(iter(input, ""))
+        print("Arquivo não encontrado. Insira o código (Ctrl+Z + Enter para finalizar):")
+        return sys.stdin.read()
 
-# Execução principal
 if __name__ == "__main__":
-    codigo = carregar_codigo()
-    analisar_codigo(codigo)
-    imprimir_resultado()
+    analyzer = LexicalAnalyzer()
+    code = load_code("index.txt")
+    analyzer.analyze(code)
+    analyzer.print_results()

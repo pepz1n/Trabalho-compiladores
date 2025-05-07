@@ -1,9 +1,4 @@
-// início
-public class Teste {
-    private boolean ativo = true;
-    double valor = 3.14;
-    string nome = "Aluno";
-    for (int i = 0; i < 10; i++) {
-        valor += i;
-    }
-}
+int a = 10 * (5 + 3);
+boolean b = (a >= 50) && !flag;
+int[] lista = {1, 2, 3};
+x += y instanceof String ? 1 : 0;
