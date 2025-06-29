@@ -1,0 +1,55 @@
+
+=== Tokens Reconhecidos ===
+Linha   1: TYPE            int             int
+Linha   1: IDENTIFIER      ID              a
+Linha   1: OPERATOR        =               =
+Linha   1: NUMINT          D               10
+Linha   1: OPERATOR        *               *
+Linha   1: DELIMITER       (               (
+Linha   1: NUMINT          D               5
+Linha   1: OPERATOR        +               +
+Linha   1: NUMINT          D               3
+Linha   1: DELIMITER       )               )
+Linha   1: DELIMITER       ;               ;
+Linha   2: TYPE            boolean         boolean
+Linha   2: IDENTIFIER      ID              b
+Linha   2: OPERATOR        =               =
+Linha   2: DELIMITER       (               (
+Linha   2: IDENTIFIER      ID              a
+Linha   2: OPERATOR        >=              >=
+Linha   2: NUMINT          D               50
+Linha   2: DELIMITER       )               )
+Linha   2: OPERATOR        &&              &&
+Linha   2: OPERATOR        !               !
+Linha   2: IDENTIFIER      ID              flag
+Linha   2: DELIMITER       ;               ;
+Linha   3: TYPE            int             int
+Linha   3: DELIMITER       [               [
+Linha   3: DELIMITER       ]               ]
+Linha   3: IDENTIFIER      ID              lista
+Linha   3: OPERATOR        =               =
+Linha   3: DELIMITER       {               {
+Linha   3: NUMINT          D               1
+Linha   3: DELIMITER       ,               ,
+Linha   3: NUMINT          D               2
+Linha   3: DELIMITER       ,               ,
+Linha   3: NUMINT          D               3
+Linha   3: DELIMITER       }               }
+Linha   3: DELIMITER       ;               ;
+Linha   4: TYPE            int             int
+Linha   4: IDENTIFIER      ID              c
+Linha   4: OPERATOR        =               =
+Linha   4: NUMINT          D               1
+Linha   4: DELIMITER       ;               ;
+Linha   5: IDENTIFIER      ID              c
+Linha   5: OPERATOR        ++              ++
+Linha   5: DELIMITER       ;               ;
+
+=== Tabela de Símbolos ===
+  a
+  b
+  c
+  flag
+  lista
+
+=== Erros Léxicos ===

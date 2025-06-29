@@ -1,13 +1,13 @@
 import re
-from typing import List, Dict, Tuple
+from typing import List, Dict
 import sys
 
 KEYWORDS = {
     'int', 'float', 'double', 'boolean', 'void', 'string',
     'true', 'false', 'null', 'if', 'else', 'switch', 'case', 'default',
-    'break', 'continue', 'return', 'try', 'catch',
-    'finally', 'throw', 'public', 'private', 'protected', 'static', 'final',
-    'abstract', 'class', 'interface', 'extends', 'implements', 'new',
+    'break', 'continue', 'return', 'try', 'catch', 'finally', 'throw',
+    'public', 'private', 'protected', 'static', 'final', 'abstract',
+    'class', 'interface', 'extends', 'implements', 'new',
     'this', 'super', 'package', 'import'
 }
 
@@ -22,8 +22,8 @@ TOKEN_REGEX = [
     (r'\b(break|continue|return)\b',   'FLOW'),
     (r'\b(try|catch|finally|throw)\b', 'EXCEPTION'),
     (r'\b(public|private|protected|static|final|abstract)\b', 'MODIFIER'),
-    (r'\b(class|interface|extends|implements|new|this|super|package|import|System)\b', 'KEYWORDS'),
-    (r'(\+\+|--|==|!=|>=|<=|&&|\|\||\+=|-=|\*=|\/=|%=|instanceof|[+\-*/=><!%])', 'OPERATOR'),
+    (r'\b(class|interface|extends|implements|new|this|super|package|import|System)\b', 'KEYWORD'),
+    (r'(\+\+|--|==|!=|>=|<=|&&|\|\||\+=|-=|\*=|/=|%=|instanceof|[+\-*/=><!%])', 'OPERATOR'),
     (r'\b(?!' + '|'.join(KEYWORDS) + r'\b)[a-zA-Z_][a-zA-Z0-9_]*\b', 'IDENTIFIER'),
     (r'\d+\.\d+',                      'NUMDEC'),
     (r'\d+',                           'NUMINT'),
@@ -52,18 +52,32 @@ class LexicalAnalyzer:
                 token_type = match.lastgroup
                 lexeme = match.group()
                 pos = match.end()
-                if token_type == 'COMMENT':
+
+                if token_type in ['COMMENT', 'BLOCK_COMMENT']:
                     continue
+
                 if token_type == 'IDENTIFIER':
                     if lexeme in KEYWORDS:
                         token_type = 'KEYWORD'
                     else:
                         self.symbol_table.add(lexeme)
-                self.tokens.append({
-                    'line': line_num,
-                    'token': token_type,
-                    'lexeme': lexeme
-                })
+                        categoria = 'ID'
+                elif token_type == 'NUMINT':
+                    categoria = 'D'
+                elif token_type == 'NUMDEC':
+                    categoria = 'NUMDEC'
+                elif token_type == 'STRING_LITERAL':
+                    categoria = 'L'
+                else:
+                    categoria = lexeme  # Para operadores e delimitadores
+
+                if token_type not in ['COMMENT', 'BLOCK_COMMENT']:
+                    self.tokens.append({
+                        'line': line_num,
+                        'token': token_type,
+                        'categoria': categoria,
+                        'lexeme': lexeme
+                    })
             else:
                 start = pos
                 while pos < len(line) and not line[pos].isspace():
@@ -110,28 +124,17 @@ class LexicalAnalyzer:
                 'message': 'Comentário de bloco não fechado'
             })
 
-    def print_results(self):
-        print("\n=== Tokens Reconhecidos ===")
-        for token in self.tokens:
-            tipo = token['token']
-            lexema = token['lexeme']
-            if tipo == 'NUMINT':
-                categoria = 'D'
-            elif tipo == 'STRING_LITERAL':
-                categoria = 'L'
-            elif tipo == 'IDENTIFIER':
-                categoria = 'ID'
-            elif tipo == 'NUMDEC':
-                categoria = 'NUMDEC'
-            else:
-                categoria = lexema
-            print(f"Linha {token['line']:3}: {tipo:<15} {categoria:<15} {lexema}")
-        print("\n=== Tabela de Símbolos ===")
-        for symbol in sorted(self.symbol_table):
-            print(f"  {symbol}")
-        print("\n=== Erros Léxicos ===")
-        for error in self.errors:
-            print(f"Linha {error['line']:3}: '{error['lexeme']}' - {error['message']}")
+    def save_results(self, filename: str):
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write("\n=== Tokens Reconhecidos ===\n")
+            for token in self.tokens:
+                f.write(f"Linha {token['line']:3}: {token['token']:<15} {token['categoria']:<15} {token['lexeme']}\n")
+            f.write("\n=== Tabela de Símbolos ===\n")
+            for symbol in sorted(self.symbol_table):
+                f.write(f"  {symbol}\n")
+            f.write("\n=== Erros Léxicos ===\n")
+            for error in self.errors:
+                f.write(f"Linha {error['line']:3}: '{error['lexeme']}' - {error['message']}\n")
 
 def load_code(filename: str) -> str:
     try:
@@ -145,4 +148,4 @@ if __name__ == "__main__":
     analyzer = LexicalAnalyzer()
     code = load_code("index.txt")
     analyzer.analyze(code)
-    analyzer.print_results()
+    analyzer.save_results("resultado_lexico.txt")
